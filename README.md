@@ -16,6 +16,7 @@ systemctl stop sing-box
 rm -rf /usr/local/bin/sing-box
 rm -rf /var/lib/sing-box-plus
 
+```
 ---
 
 ## ✨ 默认部署内容（18 个节点）
