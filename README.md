@@ -9,6 +9,13 @@
 * ✅ 分享链接分组打印（直连 9 / WARP 9），导入即用
 * ✅ WARP 节点，将服务器 IP“变身”为 Cloudflare 的中性出口，Netflix/Disney+/YouTube 等流媒体解锁
 
+**重要提醒：** 当前脚本与 **sing-box v1.13.0** 版本不兼容。若您已经安装了该版本，请先卸载并重新安装 **sing-box v1.12.x** 版本。可使用以下命令进行卸载：
+
+```bash
+systemctl stop sing-box
+rm -rf /usr/local/bin/sing-box
+rm -rf /var/lib/sing-box-plus
+
 ---
 
 ## ✨ 默认部署内容（18 个节点）
@@ -60,7 +67,7 @@ curl -fsSL -o sing-box-plus.sh https://raw.githubusercontent.com/Alvin9999-newpa
 ## 🧭 功能菜单
 
 ```text
- 🚀 Sing-Box-Plus 管理脚本 v3.2.0 🚀
+ 🚀 Sing-Box-Plus 管理脚本 v3.5.1 🚀
  脚本更新地址: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 =============================================================
 系统加速状态：已启用 / 未启用 BBR
