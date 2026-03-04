@@ -1080,11 +1080,26 @@ rotate_ports(){
 
 
 uninstall_all(){
+  # 停止服务
   systemctl stop "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
+  
+  # 禁用服务
   systemctl disable "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
+  
+  # 删除 systemd 服务文件
   rm -f "/etc/systemd/system/${SYSTEMD_SERVICE}"
+  
+  # 重新加载 systemd 配置
   systemctl daemon-reload
+  
+  # 删除 sing-box 二进制文件和配置文件
+  rm -rf /usr/local/bin/sing-box
+  rm -rf /var/lib/sing-box-plus
+  
+  # 清理脚本的工作目录
   rm -rf "$SB_DIR"
+
+  # 输出卸载完成的提示
   echo -e "${C_GREEN}已卸载并清理完成。${C_RESET}"
   exit 0
 }
