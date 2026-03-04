@@ -182,7 +182,7 @@ install_singbox_binary() {
 
   ensure_jq_static || { echo "[ERROR] 无法获取 jq，二进制模式失败"; rm -rf "$tmp"; return 1; }
 
-json="$(with_retry 3 curl -fsSL https://api.github.com/repos/SagerNet/sing-box/releases/latest)" || { rm -rf "$tmp"; return 1; }
+json="$(with_retry 3 curl -fsSL https://api.github.com/repos/SagerNet/sing-box/releases/tags/v1.12.22)" || { rm -rf "$tmp"; return 1; }
   url="$(printf '%s' "$json" | jq -r --arg a "$goarch" '
     .assets[] | select(.name|test("linux-" + $a + "\\.(tar\\.(xz|gz)|zip)$")) | .browser_download_url
   ' | head -n1)"
