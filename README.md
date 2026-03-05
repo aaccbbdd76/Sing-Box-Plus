@@ -43,7 +43,6 @@ rm -rf /var/lib/sing-box-plus
 
 ## ✅ 支持系统
 
-支持系统：
  - Debian 11+ ✅
  - Ubuntu 20.04+ ✅
  - CentOS Stream 9+ ✅
