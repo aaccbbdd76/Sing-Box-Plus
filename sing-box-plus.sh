@@ -87,9 +87,9 @@ sbp_pm_refresh() {
   case "$PM" in
     apt)
       apt_allow_release_change
-      sed -i 's#^deb http://#deb https://#' /etc/apt/sources.list 2>/dev/null || true
+      [[ -f /etc/apt/sources.list ]] && sed -i 's#^deb http://#deb https://#' /etc/apt/sources.list 2>/dev/null || true
       # 修正 bullseye 的 security 行：bullseye/updates → debian-security bullseye-security
-      sed -i -E 's#^(deb\s+https?://security\.debian\.org)(/debian-security)?\s+bullseye/updates(.*)$#\1/debian-security bullseye-security\3#' /etc/apt/sources.list
+      [[ -f /etc/apt/sources.list ]] && sed -i -E 's#^(deb\s+https?://security\.debian\.org)(/debian-security)?\s+bullseye/updates(.*)$#\1/debian-security bullseye-security\3#' /etc/apt/sources.list || true
 
       local AOPT=""
       curl -6 -fsS --connect-timeout 2 https://deb.debian.org >/dev/null 2>&1 || AOPT='-o Acquire::ForceIPv4=true'
@@ -779,7 +779,7 @@ PYEOF
     return 1
   fi
 
-  ok "WARP proxy 已就绪：socks5://${WARP_SOCKS_HOST}:${WARP_SOCKS_PORT}"
+  ok "WARP proxy 已就绪"
   return 0
 }
 
