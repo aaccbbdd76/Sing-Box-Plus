@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.6.9
+#  Version: v3.7.9
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.6.9"
+SCRIPT_VERSION="v3.7.9"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -636,12 +636,8 @@ ensure_warpcli_proxy(){
   # 已注册则跳过；未注册则自动同意条款
   if ! warp-cli registration show >/dev/null 2>&1; then
     info "正在初始化 Cloudflare WARP"
-    # echo y 管道方式有效，忽略退出码（warp-cli 管道下退出码不可靠）
-    echo y | warp-cli registration new 2>&1 | grep -v "^$" || true
-    sleep 3
-    # 用 warp-cli status 验证（比 registration show 更可靠）
-    warp-cli status 2>&1 | grep -qiE "Disconnected|Connected|Connecting" || {
-      err "WARP 注册后状态异常"; return 1
+    warp-cli registration new --accept-tos >/dev/null 2>&1 || {
+      err "WARP 注册失败"; return 1
     }
   fi
 
