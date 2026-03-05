@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.8.9
+#  Version: v3.9.9
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.8.9"
+SCRIPT_VERSION="v3.9.9"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -636,9 +636,14 @@ ensure_warpcli_proxy(){
   # 已注册则跳过；未注册则自动同意条款
   if ! warp-cli registration show >/dev/null 2>&1; then
     info "正在初始化 Cloudflare WARP"
-    # warp-cli 检测 TTY，非 TTY 拒绝接受输入；用 Python pty 模拟真实终端注入 y
-    python3 - <<'PYEOF' 2>/dev/null || true
-import pty, os, time, select
+
+    # warp-cli 强制检测 TTY，非 TTY 拒绝输入，需模拟真实终端注入 y
+    # 优先级：python3 pty（最可靠）→ expect → 安装 python3 兜底
+    _warp_reg_ok=0
+
+    if command -v python3 >/dev/null 2>&1; then
+      python3 - <<'PYEOF' 2>/dev/null && _warp_reg_ok=1 || true
+import pty, os, time, select, sys
 
 def run():
     pid, fd = pty.fork()
@@ -657,6 +662,8 @@ def run():
                     time.sleep(0.2)
                     os.write(fd, b"y\n")
                     answered = True
+                if "Success" in data:
+                    sys.exit(0)
             try:
                 ret = os.waitpid(pid, os.WNOHANG)
                 if ret[0] != 0:
@@ -667,13 +674,81 @@ def run():
             os.waitpid(pid, 0)
         except Exception:
             pass
+        sys.exit(1)
 
 run()
 PYEOF
+
+    elif command -v expect >/dev/null 2>&1; then
+      expect -c '
+        spawn warp-cli registration new
+        expect -re {[yY]/[nN]}
+        send "y\r"
+        expect eof
+      ' >/dev/null 2>&1 && _warp_reg_ok=1 || true
+
+    else
+      # 尝试安装 python3（兜底）
+      warn "未找到 python3/expect，尝试安装 python3..."
+      if command -v apt-get >/dev/null 2>&1; then
+        apt-get install -y python3 >/dev/null 2>&1 || true
+      elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y python3 >/dev/null 2>&1 || true
+      elif command -v yum >/dev/null 2>&1; then
+        yum install -y python3 >/dev/null 2>&1 || true
+      elif command -v pacman >/dev/null 2>&1; then
+        pacman -Sy --noconfirm python >/dev/null 2>&1 || true
+      elif command -v zypper >/dev/null 2>&1; then
+        zypper --non-interactive install python3 >/dev/null 2>&1 || true
+      fi
+
+      if command -v python3 >/dev/null 2>&1; then
+        python3 - <<'PYEOF' 2>/dev/null && _warp_reg_ok=1 || true
+import pty, os, time, select, sys
+
+def run():
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execvp("warp-cli", ["warp-cli", "registration", "new"])
+    else:
+        answered = False
+        for _ in range(30):
+            r, _, _ = select.select([fd], [], [], 1)
+            if r:
+                try:
+                    data = os.read(fd, 4096).decode(errors="ignore")
+                except OSError:
+                    break
+                if not answered and ("y/N" in data or "y/n" in data):
+                    time.sleep(0.2)
+                    os.write(fd, b"y\n")
+                    answered = True
+                if "Success" in data:
+                    sys.exit(0)
+            try:
+                ret = os.waitpid(pid, os.WNOHANG)
+                if ret[0] != 0:
+                    break
+            except ChildProcessError:
+                break
+        try:
+            os.waitpid(pid, 0)
+        except Exception:
+            pass
+        sys.exit(1)
+
+run()
+PYEOF
+      else
+        err "无法自动完成 WARP 注册（缺少 python3/expect），请手动运行：warp-cli registration new"
+        return 1
+      fi
+    fi
+
     sleep 2
-    warp-cli registration show >/dev/null 2>&1 || {
-      err "WARP 注册失败"; return 1
-    }
+    if ! warp-cli registration show >/dev/null 2>&1; then
+      err "WARP 注册失败，请手动运行：warp-cli registration new"; return 1
+    fi
   fi
 
   # proxy 模式：不改系统默认路由
