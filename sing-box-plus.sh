@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.9.2
+#  Version: v3.9.8
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.9.2"
+SCRIPT_VERSION="v3.9.8"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -635,7 +635,13 @@ ensure_warpcli_proxy(){
   # 已注册则跳过；未注册则自动同意条款
   warp-cli registration show >/dev/null 2>&1 || {
     info "正在初始化 Cloudflare WARP"
-    yes y | warp-cli registration new >/dev/null 2>&1 || return 1
+    # 新版 warp-cli 先输出隐私声明再等待 [y/N]，用 expect 或 printf 确保 y 在正确时机输入
+    if command -v expect >/dev/null 2>&1; then
+      expect -c 'spawn warp-cli registration new; expect "y/N"; send "y\r"; expect eof' >/dev/null 2>&1 || return 1
+    else
+      # 无 expect：用 printf 写入 pty，兜底方案
+      printf 'y\n' | warp-cli registration new >/dev/null 2>&1 || return 1
+    fi
   }
 
   # proxy 模式：不改系统默认路由
