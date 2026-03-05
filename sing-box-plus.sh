@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.5.2
+#  Version: v3.5.5
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.5.2"
+SCRIPT_VERSION="v3.5.5"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -631,19 +631,19 @@ ensure_warpcli_proxy(){
 
   systemctl enable --now warp-svc >/dev/null 2>&1 || true
 
-  # 已注册则跳过；未注册则自动同意条款
+  # 注册并同意条款
   warp-cli registration show >/dev/null 2>&1 || {
     info "正在初始化 Cloudflare WARP"
     yes y | warp-cli registration new >/dev/null 2>&1 || return 1
   }
 
-  # proxy 模式：不改系统默认路由
+  # 启用代理模式（通过 socks5 转发）
   warp-cli mode proxy >/dev/null 2>&1 || true
 
-  # 连接
+  # 连接 WARP 服务
   warp-cli connect >/dev/null 2>&1 || return 1
 
-  # 等待 socks 端口监听
+  # 等待 SOCKS 端口监听
   for i in {1..12}; do
     if ss -lntp 2>/dev/null | grep -q ":${WARP_SOCKS_PORT}\b" || netstat -lntp 2>/dev/null | grep -q ":${WARP_SOCKS_PORT}\b"; then
       break
@@ -651,6 +651,7 @@ ensure_warpcli_proxy(){
     sleep 1
   done
 
+  # 检查 SOCKS5 端口是否监听
   if !( ss -lntp 2>/dev/null | grep -q ":${WARP_SOCKS_PORT}\b" || netstat -lntp 2>/dev/null | grep -q ":${WARP_SOCKS_PORT}\b" ); then
     err "WARP SOCKS5 端口 ${WARP_SOCKS_PORT} 未监听（warp-svc/warp-cli 可能未正常工作）"
     systemctl status warp-svc --no-pager | head -80 || true
@@ -658,7 +659,7 @@ ensure_warpcli_proxy(){
     return 1
   fi
 
-  # 真正测试 warp=on
+  # 测试 WARP 代理是否正常工作
   if ! curl -fsSL --proxy "socks5://${WARP_SOCKS_HOST}:${WARP_SOCKS_PORT}" https://cloudflare.com/cdn-cgi/trace | grep -q "warp=on"; then
     err "WARP 代理测试失败：未检测到 warp=on"
     warp-cli status || true
@@ -883,13 +884,17 @@ write_config(){
       (inbound_ss($PW8) + {tag:"ss-warp"}),
       (inbound_tuic($PW9) + {tag:"tuic-v5-warp"})
     ],
-    outbounds: (
-      if $ENABLE_WARP=="true" and ($WPRIV|length)>0 and ($WHOST|length)>0 then
-        [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}, warp_outbound]
-      else
-        [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}]
-      end
-    ),
+outbounds: (
+  if $ENABLE_WARP=="true" and ($WPRIV|length)>0 and ($WHOST|length)>0 then
+    [
+      {type:"direct", tag:"direct"},
+      {type:"block", tag:"block"},
+      {type:"socks5", tag:"warp", settings:{address:"127.0.0.1", port:40000}}  // 确保通过 SOCKS5 代理
+    ]
+  else
+    [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}]
+  end
+),
     route: (
       if $ENABLE_WARP=="true" and ($WPRIV|length)>0 and ($WHOST|length)>0 then
         { default_domain_resolver:"dns-remote", rules:[
