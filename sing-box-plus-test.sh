@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.5.3
+#  Version: v3.5.6
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.5.3"
+SCRIPT_VERSION="v3.5.6"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -819,7 +819,7 @@ systemctl daemon-reload
 systemctl enable "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
 }
 
-# ===== 写 config.json（使用你提供的稳定配置逻辑） =====
+# ===== 写 config.json（已修复 WARP 落地 IP 问题） =====
 write_config(){
   ensure_dirs; load_env || true; load_creds || true; load_ports || true
   ensure_creds; save_all_ports; mk_cert
@@ -840,10 +840,6 @@ write_config(){
   --argjson PW4 "$PORT_HY2_W" --argjson PW5 "$PORT_VMESS_WS_W" --argjson PW6 "$PORT_HY2_OBFS_W" \
   --argjson PW7 "$PORT_SS2022_W" --argjson PW8 "$PORT_SS_W" --argjson PW9 "$PORT_TUIC_W" \
   --arg ENABLE_WARP "$ENABLE_WARP" \
-  --arg WPRIV "${WARP_PRIVATE_KEY:-}" --arg WPPUB "${WARP_PEER_PUBLIC_KEY:-}" \
-  --arg WHOST "${WARP_ENDPOINT_HOST:-}" --argjson WPORT "${WARP_ENDPOINT_PORT:-0}" \
-  --arg W4 "${WARP_ADDRESS_V4:-}" --arg W6 "${WARP_ADDRESS_V6:-}" \
-  --argjson WR1 "${WARP_RESERVED_1:-0}" --argjson WR2 "${WARP_RESERVED_2:-0}" --argjson WR3 "${WARP_RESERVED_3:-0}" \
   '
   def inbound_vless($port): {type:"vless", listen:"::", listen_port:$port, users:[{uuid:$UID}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
   def inbound_vless_flow($port): {type:"vless", listen:"::", listen_port:$port, users:[{uuid:$UID, flow:"xtls-rprx-vision"}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
@@ -855,55 +851,59 @@ write_config(){
   def inbound_ss($port): {type:"shadowsocks", listen:"::", listen_port:$port, method:"aes-256-gcm", password:$SSPWD};
   def inbound_tuic($port): {type:"tuic", listen:"::", listen_port:$port, users:[{uuid:$TUICUUID, password:$TUICPWD}], congestion_control:"bbr", tls:{enabled:true, certificate_path:$CRT, key_path:$KEY, alpn:["h3"]}};
 
-  def warp_outbound:
-    {type:"socks", tag:"warp", server:$WSHOST, server_port:$WSPORT};
-
-
   {
-    log:{level:"info", timestamp:true},
-    dns:{ servers:[ {tag:"dns-remote", address:"https://1.1.1.1/dns-query", detour:"direct"}, {address:"tls://dns.google", detour:"direct"} ], strategy:"prefer_ipv4" },
-    inbounds:[
-      (inbound_vless_flow($P1) + {tag:"vless-reality"}),
-      (inbound_vless($P2) + {tag:"vless-grpcr", transport:{type:"grpc", service_name:$GRPC}}),
-      (inbound_trojan($P3) + {tag:"trojan-reality"}),
-      (inbound_hy2($P4) + {tag:"hy2"}),
-      (inbound_vmess_ws($P5) + {tag:"vmess-ws"}),
-      (inbound_hy2_obfs($P6) + {tag:"hy2-obfs"}),
-      (inbound_ss2022($P7) + {tag:"ss2022"}),
-      (inbound_ss($P8) + {tag:"ss"}),
-      (inbound_tuic($P9) + {tag:"tuic-v5"}),
+    log: {level: "info", timestamp: true},
+    dns: {
+      servers: [
+        {tag: "dns-remote", address: "https://1.1.1.1/dns-query", detour: "direct"},
+        {address: "tls://dns.google", detour: "direct"}
+      ],
+      strategy: "prefer_ipv4"
+    },
+    inbounds: [
+      (inbound_vless_flow($P1) + {tag: "vless-reality"}),
+      (inbound_vless($P2) + {tag: "vless-grpcr", transport: {type: "grpc", service_name: $GRPC}}),
+      (inbound_trojan($P3) + {tag: "trojan-reality"}),
+      (inbound_hy2($P4) + {tag: "hy2"}),
+      (inbound_vmess_ws($P5) + {tag: "vmess-ws"}),
+      (inbound_hy2_obfs($P6) + {tag: "hy2-obfs"}),
+      (inbound_ss2022($P7) + {tag: "ss2022"}),
+      (inbound_ss($P8) + {tag: "ss"}),
+      (inbound_tuic($P9) + {tag: "tuic-v5"}),
 
-      (inbound_vless_flow($PW1) + {tag:"vless-reality-warp"}),
-      (inbound_vless($PW2) + {tag:"vless-grpcr-warp", transport:{type:"grpc", service_name:$GRPC}}),
-      (inbound_trojan($PW3) + {tag:"trojan-reality-warp"}),
-      (inbound_hy2($PW4) + {tag:"hy2-warp"}),
-      (inbound_vmess_ws($PW5) + {tag:"vmess-ws-warp"}),
-      (inbound_hy2_obfs($PW6) + {tag:"hy2-obfs-warp"}),
-      (inbound_ss2022($PW7) + {tag:"ss2022-warp"}),
-      (inbound_ss($PW8) + {tag:"ss-warp"}),
-      (inbound_tuic($PW9) + {tag:"tuic-v5-warp"})
+      (inbound_vless_flow($PW1) + {tag: "vless-reality-warp"}),
+      (inbound_vless($PW2) + {tag: "vless-grpcr-warp", transport: {type: "grpc", service_name: $GRPC}}),
+      (inbound_trojan($PW3) + {tag: "trojan-reality-warp"}),
+      (inbound_hy2($PW4) + {tag: "hy2-warp"}),
+      (inbound_vmess_ws($PW5) + {tag: "vmess-ws-warp"}),
+      (inbound_hy2_obfs($PW6) + {tag: "hy2-obfs-warp"}),
+      (inbound_ss2022($PW7) + {tag: "ss2022-warp"}),
+      (inbound_ss($PW8) + {tag: "ss-warp"}),
+      (inbound_tuic($PW9) + {tag: "tuic-v5-warp"})
     ],
-    outbounds: (
-      if $ENABLE_WARP=="true" and ($WPRIV|length)>0 and ($WHOST|length)>0 then
-        [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}, warp_outbound]
-      else
-        [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}]
-      end
-    ),
-    route: (
-      if $ENABLE_WARP=="true" and ($WPRIV|length)>0 and ($WHOST|length)>0 then
-        { default_domain_resolver:"dns-remote", rules:[
-            { inbound: ["vless-reality-warp","vless-grpcr-warp","trojan-reality-warp","hy2-warp","vmess-ws-warp","hy2-obfs-warp","ss2022-warp","ss-warp","tuic-v5-warp"], outbound:"warp" }
+    outbounds: [
+      {type: "direct", tag: "direct"},
+      {type: "socks", tag: "warp", server: $WSHOST, server_port: $WSPORT},
+      {type: "dns", tag: "dns-out"}
+    ],
+    route: {
+      rules: [
+        {protocol: "dns", outbound: "dns-out"},
+        {
+          inbound: [
+            "vless-reality-warp", "vless-grpcr-warp", "trojan-reality-warp",
+            "hy2-warp", "vmess-ws-warp", "hy2-obfs-warp",
+            "ss2022-warp", "ss-warp", "tuic-v5-warp"
           ],
-          final:"direct"
+          outbound: "warp"
         }
-      else
-        { final:"direct" }
-      end
-    )
+      ],
+      final: "direct"
+    }
   }' > "$CONF_JSON"
   save_env
 }
+
 
 # ===== 防火墙 =====
 open_firewall(){
