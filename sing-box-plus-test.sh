@@ -666,7 +666,7 @@ ensure_warpcli_proxy(){
     return 1
   fi
 
-  ok "WARP proxy 已就绪：socks5://${WARP_SOCKS_HOST}:${WARP_SOCKS_PORT}"
+  ok "WARP proxy 已就绪"
   return 0
 }
 
