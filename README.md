@@ -68,7 +68,7 @@ curl -fsSL -o sing-box-plus.sh https://raw.githubusercontent.com/Alvin9999-newpa
 ## 🧭 功能菜单
 
 ```text
- 🚀 Sing-Box-Plus 管理脚本 v3.5.1 🚀
+ 🚀 Sing-Box-Plus 管理脚本 v3.9.9 🚀
  脚本更新地址: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 =============================================================
 系统加速状态：已启用 / 未启用 BBR
@@ -91,7 +91,7 @@ Sing-Box 启动状态：运行中 / 未运行 / 未安装
 
 | 版本    | 日期     | 变更 |
 |--------|----------|------|
-| v3.2.0 | 2026-01 | - WARP采用官方 warp-cli，更高兼容性。 |
+| v3.9.9 | 2026-03 | WARP节点已修复。 |
 
 
 ---
