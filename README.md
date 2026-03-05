@@ -43,7 +43,13 @@ rm -rf /var/lib/sing-box-plus
 
 ## ✅ 支持系统
 
-支持系统：Debian 11+ / Ubuntu 20.04+ / CentOS Stream 9+ / Rocky 9+ / AlmaLinux 9+ / Fedora 38+ / Arch(rolling) / openSUSE Leap 15.4+
+支持系统：
+Debian 11+ ✅
+Ubuntu 20.04+ ✅
+CentOS Stream 9+ ✅
+Rocky 9+ ✅
+AlmaLinux 9+ ✅
+Fedora 38+ ✅（dnf 分支覆盖）
 
 已在[Vultr](https://www.vultr.com/?ref=7048874) 上测试通过。
 
