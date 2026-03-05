@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.5.8
+#  Version: v3.7.1
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -14,7 +14,7 @@ stty erase ^H # 让退格键在终端里正常工作
 : "${SBP_SOFT:=0}"                               # 1=宽松模式（失败尽量继续），默认 0=严格
 : "${SBP_SKIP_DEPS:=0}"                          # 1=启动跳过依赖检查（只在菜单 1) 再装）
 : "${SBP_FORCE_DEPS:=0}"                         # 1=强制重新安装依赖
-: "${SBP_BIN_ONLY:=0}"                           # 1=强制走二进制模式，不用包管理器
+: "${SBP_BIN_ONLY:=1}"                           # 1=强制走二进制模式，不用包管理器
 : "${SBP_ROOT:=/var/lib/sing-box-plus}"
 : "${SBP_BIN_DIR:=${SBP_ROOT}/bin}"
 : "${SBP_DEPS_SENTINEL:=/var/lib/sing-box-plus/.deps_ok}"
@@ -182,7 +182,7 @@ install_singbox_binary() {
 
   ensure_jq_static || { echo "[ERROR] 无法获取 jq，二进制模式失败"; rm -rf "$tmp"; return 1; }
 
-json="$(with_retry 3 curl -fsSL https://api.github.com/repos/SagerNet/sing-box/releases/tags/v1.12.7)" || { rm -rf "$tmp"; return 1; }
+json="$(with_retry 3 curl -fsSL https://api.github.com/repos/SagerNet/sing-box/releases/tags/v1.12.22)" || { rm -rf "$tmp"; return 1; }
   url="$(printf '%s' "$json" | jq -r --arg a "$goarch" '
     .assets[] | select(.name|test("linux-" + $a + "\\.(tar\\.(xz|gz)|zip)$")) | .browser_download_url
   ' | head -n1)"
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.5.8"
+SCRIPT_VERSION="v3.7.1"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -742,7 +742,7 @@ install_singbox() {
   command -v unzip >/dev/null 2>&1 || ensure_deps unzip   >/dev/null 2>&1 || true
 
   local repo="SagerNet/sing-box"
-  local tag="${SINGBOX_TAG:-v1.12.7}"   # 允许用环境变量固定版本，如 v1.12.7
+  local tag="${SINGBOX_TAG:-v1.12.22}"   # 允许用环境变量固定版本，如 v1.12.7
   local arch; arch="$(arch_map)"
   local api url tmp pkg re rel_url
 
@@ -819,15 +819,13 @@ systemctl daemon-reload
 systemctl enable "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
 }
 
-# ===== 写 config.json（已修复 WARP 落地 IP 问题） =====
+# ===== 写 config.json（使用你提供的稳定配置逻辑） =====
 write_config(){
   ensure_dirs; load_env || true; load_creds || true; load_ports || true
   ensure_creds; save_all_ports; mk_cert
   [[ "$ENABLE_WARP" == "true" ]] && ensure_warpcli_proxy
 
   local CRT="$CERT_DIR/fullchain.pem" KEY="$CERT_DIR/key.pem"
-  
-  # 开始生成配置，去掉了所有复杂的判断，确保 100% 生成成功
   jq -n \
   --arg RS "$REALITY_SERVER" --argjson RSP "${REALITY_SERVER_PORT:-443}" --arg UID "$UUID" \
   --arg WSHOST "$WARP_SOCKS_HOST" --argjson WSPORT "$WARP_SOCKS_PORT" \
@@ -841,6 +839,11 @@ write_config(){
   --argjson PW1 "$PORT_VLESSR_W" --argjson PW2 "$PORT_VLESS_GRPCR_W" --argjson PW3 "$PORT_TROJANR_W" \
   --argjson PW4 "$PORT_HY2_W" --argjson PW5 "$PORT_VMESS_WS_W" --argjson PW6 "$PORT_HY2_OBFS_W" \
   --argjson PW7 "$PORT_SS2022_W" --argjson PW8 "$PORT_SS_W" --argjson PW9 "$PORT_TUIC_W" \
+  --arg ENABLE_WARP "$ENABLE_WARP" \
+  --arg WPRIV "${WARP_PRIVATE_KEY:-}" --arg WPPUB "${WARP_PEER_PUBLIC_KEY:-}" \
+  --arg WHOST "${WARP_ENDPOINT_HOST:-}" --argjson WPORT "${WARP_ENDPOINT_PORT:-0}" \
+  --arg W4 "${WARP_ADDRESS_V4:-}" --arg W6 "${WARP_ADDRESS_V6:-}" \
+  --argjson WR1 "${WARP_RESERVED_1:-0}" --argjson WR2 "${WARP_RESERVED_2:-0}" --argjson WR3 "${WARP_RESERVED_3:-0}" \
   '
   def inbound_vless($port): {type:"vless", listen:"::", listen_port:$port, users:[{uuid:$UID}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
   def inbound_vless_flow($port): {type:"vless", listen:"::", listen_port:$port, users:[{uuid:$UID, flow:"xtls-rprx-vision"}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
@@ -852,60 +855,55 @@ write_config(){
   def inbound_ss($port): {type:"shadowsocks", listen:"::", listen_port:$port, method:"aes-256-gcm", password:$SSPWD};
   def inbound_tuic($port): {type:"tuic", listen:"::", listen_port:$port, users:[{uuid:$TUICUUID, password:$TUICPWD}], congestion_control:"bbr", tls:{enabled:true, certificate_path:$CRT, key_path:$KEY, alpn:["h3"]}};
 
-  {
-    log: {level: "info", timestamp: true},
-    dns: {
-      servers: [
-        {tag: "dns-remote", address: "https://1.1.1.1/dns-query", detour: "direct"},
-        {address: "tls://dns.google", detour: "direct"}
-      ],
-      strategy: "prefer_ipv4"
-    },
-    inbounds: [
-      (inbound_vless_flow($P1) + {tag: "vless-reality"}),
-      (inbound_vless($P2) + {tag: "vless-grpcr", transport: {type: "grpc", service_name: $GRPC}}),
-      (inbound_trojan($P3) + {tag: "trojan-reality"}),
-      (inbound_hy2($P4) + {tag: "hy2"}),
-      (inbound_vmess_ws($P5) + {tag: "vmess-ws"}),
-      (inbound_hy2_obfs($P6) + {tag: "hy2-obfs"}),
-      (inbound_ss2022($P7) + {tag: "ss2022"}),
-      (inbound_ss($P8) + {tag: "ss"}),
-      (inbound_tuic($P9) + {tag: "tuic-v5"}),
+  def warp_outbound:
+    {type:"socks", tag:"warp", server:$WSHOST, server_port:$WSPORT};
 
-      (inbound_vless_flow($PW1) + {tag: "vless-reality-warp"}),
-      (inbound_vless($PW2) + {tag: "vless-grpcr-warp", transport: {type: "grpc", service_name: $GRPC}}),
-      (inbound_trojan($PW3) + {tag: "trojan-reality-warp"}),
-      (inbound_hy2($PW4) + {tag: "hy2-warp"}),
-      (inbound_vmess_ws($PW5) + {tag: "vmess-ws-warp"}),
-      (inbound_hy2_obfs($PW6) + {tag: "hy2-obfs-warp"}),
-      (inbound_ss2022($PW7) + {tag: "ss2022-warp"}),
-      (inbound_ss($PW8) + {tag: "ss-warp"}),
-      (inbound_tuic($PW9) + {tag: "tuic-v5-warp"})
+
+  {
+    log:{level:"info", timestamp:true},
+    dns:{ servers:[ {tag:"dns-remote", address:"https://1.1.1.1/dns-query", detour:"direct"}, {address:"tls://dns.google", detour:"direct"} ], strategy:"prefer_ipv4" },
+    inbounds:[
+      (inbound_vless_flow($P1) + {tag:"vless-reality"}),
+      (inbound_vless($P2) + {tag:"vless-grpcr", transport:{type:"grpc", service_name:$GRPC}}),
+      (inbound_trojan($P3) + {tag:"trojan-reality"}),
+      (inbound_hy2($P4) + {tag:"hy2"}),
+      (inbound_vmess_ws($P5) + {tag:"vmess-ws"}),
+      (inbound_hy2_obfs($P6) + {tag:"hy2-obfs"}),
+      (inbound_ss2022($P7) + {tag:"ss2022"}),
+      (inbound_ss($P8) + {tag:"ss"}),
+      (inbound_tuic($P9) + {tag:"tuic-v5"}),
+
+      (inbound_vless_flow($PW1) + {tag:"vless-reality-warp"}),
+      (inbound_vless($PW2) + {tag:"vless-grpcr-warp", transport:{type:"grpc", service_name:$GRPC}}),
+      (inbound_trojan($PW3) + {tag:"trojan-reality-warp"}),
+      (inbound_hy2($PW4) + {tag:"hy2-warp"}),
+      (inbound_vmess_ws($PW5) + {tag:"vmess-ws-warp"}),
+      (inbound_hy2_obfs($PW6) + {tag:"hy2-obfs-warp"}),
+      (inbound_ss2022($PW7) + {tag:"ss2022-warp"}),
+      (inbound_ss($PW8) + {tag:"ss-warp"}),
+      (inbound_tuic($PW9) + {tag:"tuic-v5-warp"})
     ],
-    outbounds: [
-      {type: "direct", tag: "direct"},
-      {type: "socks", tag: "warp", server: $WSHOST, server_port: $WSPORT},
-      {type: "dns", tag: "dns-out"}
-    ],
-    route: {
-      rules: [
-        {protocol: "dns", outbound: "dns-out"},
-        {
-          inbound: [
-            "vless-reality-warp", "vless-grpcr-warp", "trojan-reality-warp",
-            "hy2-warp", "vmess-ws-warp", "hy2-obfs-warp",
-            "ss2022-warp", "ss-warp", "tuic-v5-warp"
+    outbounds: (
+      if $ENABLE_WARP=="true" then
+        [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}, warp_outbound]
+      else
+        [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}]
+      end
+    ),
+    route: (
+      if $ENABLE_WARP=="true" then
+        { default_domain_resolver:"dns-remote", rules:[
+            { inbound: ["vless-reality-warp","vless-grpcr-warp","trojan-reality-warp","hy2-warp","vmess-ws-warp","hy2-obfs-warp","ss2022-warp","ss-warp","tuic-v5-warp"], outbound:"warp" }
           ],
-          outbound: "warp"
+          final:"direct"
         }
-      ],
-      final: "direct"
-    }
-  }
-  ' > "$CONF_JSON"
+      else
+        { final:"direct" }
+      end
+    )
+  }' > "$CONF_JSON"
   save_env
 }
-
 
 # ===== 防火墙 =====
 open_firewall(){
@@ -1082,26 +1080,11 @@ rotate_ports(){
 
 
 uninstall_all(){
-  # 停止服务
   systemctl stop "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
-  
-  # 禁用服务
   systemctl disable "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
-  
-  # 删除 systemd 服务文件
   rm -f "/etc/systemd/system/${SYSTEMD_SERVICE}"
-  
-  # 重新加载 systemd 配置
   systemctl daemon-reload
-  
-  # 删除 sing-box 二进制文件和配置文件
-  rm -rf /usr/local/bin/sing-box
-  rm -rf /var/lib/sing-box-plus
-  
-  # 清理脚本的工作目录
   rm -rf "$SB_DIR"
-
-  # 输出卸载完成的提示
   echo -e "${C_GREEN}已卸载并清理完成。${C_RESET}"
   exit 0
 }
