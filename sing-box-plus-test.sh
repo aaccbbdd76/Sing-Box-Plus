@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.5.9
+#  Version: v3.6.9
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.5.9"
+SCRIPT_VERSION="v3.6.9"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -305,6 +305,7 @@ hr(){ printf "${C_DIM}==========================================================
 info(){ echo -e "[${C_CYAN}信息${C_RESET}] $*"; }
 ok(){   echo -e "[${C_GREEN}成功${C_RESET}] $*"; }
 warn(){ echo -e "[${C_YELLOW}警告${C_RESET}] $*"; }
+err(){  echo -e "[${C_RED}错误${C_RESET}] $*" >&2; }
 die(){  echo -e "[${C_RED}错误${C_RESET}] $*" >&2; exit 1; }
 
 # --- 架构映射：uname -m -> 发行资产名 ---
@@ -635,12 +636,13 @@ ensure_warpcli_proxy(){
   # 已注册则跳过；未注册则自动同意条款
   if ! warp-cli registration show >/dev/null 2>&1; then
     info "正在初始化 Cloudflare WARP"
-    # echo y 管道方式有效（warp-cli 会接收到 y），忽略管道退出码，改用 registration show 验证结果
-    echo y | warp-cli registration new >/dev/null 2>&1 || true
-    sleep 2
-    if ! warp-cli registration show >/dev/null 2>&1; then
-      err "WARP 注册失败"; return 1
-    fi
+    # echo y 管道方式有效，忽略退出码（warp-cli 管道下退出码不可靠）
+    echo y | warp-cli registration new 2>&1 | grep -v "^$" || true
+    sleep 3
+    # 用 warp-cli status 验证（比 registration show 更可靠）
+    warp-cli status 2>&1 | grep -qiE "Disconnected|Connected|Connecting" || {
+      err "WARP 注册后状态异常"; return 1
+    }
   fi
 
   # proxy 模式：不改系统默认路由
