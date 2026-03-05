@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.9.8
+#  Version: v3.9.9
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -14,7 +14,7 @@ stty erase ^H # 让退格键在终端里正常工作
 : "${SBP_SOFT:=0}"                               # 1=宽松模式（失败尽量继续），默认 0=严格
 : "${SBP_SKIP_DEPS:=0}"                          # 1=启动跳过依赖检查（只在菜单 1) 再装）
 : "${SBP_FORCE_DEPS:=0}"                         # 1=强制重新安装依赖
-: "${SBP_BIN_ONLY:=1}"                           # 1=强制走二进制模式，不用包管理器
+: "${SBP_BIN_ONLY:=0}"                           # 1=强制走二进制模式，不用包管理器
 : "${SBP_ROOT:=/var/lib/sing-box-plus}"
 : "${SBP_BIN_DIR:=${SBP_ROOT}/bin}"
 : "${SBP_DEPS_SENTINEL:=/var/lib/sing-box-plus/.deps_ok}"
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.9.8"
+SCRIPT_VERSION="v3.9.9"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
