@@ -14,7 +14,7 @@ stty erase ^H # 让退格键在终端里正常工作
 : "${SBP_SOFT:=0}"                               # 1=宽松模式（失败尽量继续），默认 0=严格
 : "${SBP_SKIP_DEPS:=0}"                          # 1=启动跳过依赖检查（只在菜单 1) 再装）
 : "${SBP_FORCE_DEPS:=0}"                         # 1=强制重新安装依赖
-: "${SBP_BIN_ONLY:=1}"                           # 1=强制走二进制模式，不用包管理器
+: "${SBP_BIN_ONLY:=0}"                           # 1=强制走二进制模式，不用包管理器
 : "${SBP_ROOT:=/var/lib/sing-box-plus}"
 : "${SBP_BIN_DIR:=${SBP_ROOT}/bin}"
 : "${SBP_DEPS_SENTINEL:=/var/lib/sing-box-plus/.deps_ok}"
