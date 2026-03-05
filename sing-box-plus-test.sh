@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.7.9
+#  Version: v3.8.9
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.7.9"
+SCRIPT_VERSION="v3.8.9"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -636,7 +636,42 @@ ensure_warpcli_proxy(){
   # 已注册则跳过；未注册则自动同意条款
   if ! warp-cli registration show >/dev/null 2>&1; then
     info "正在初始化 Cloudflare WARP"
-    warp-cli registration new --accept-tos >/dev/null 2>&1 || {
+    # warp-cli 检测 TTY，非 TTY 拒绝接受输入；用 Python pty 模拟真实终端注入 y
+    python3 - <<'PYEOF' 2>/dev/null || true
+import pty, os, time, select
+
+def run():
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execvp("warp-cli", ["warp-cli", "registration", "new"])
+    else:
+        answered = False
+        for _ in range(30):
+            r, _, _ = select.select([fd], [], [], 1)
+            if r:
+                try:
+                    data = os.read(fd, 4096).decode(errors="ignore")
+                except OSError:
+                    break
+                if not answered and ("y/N" in data or "y/n" in data):
+                    time.sleep(0.2)
+                    os.write(fd, b"y\n")
+                    answered = True
+            try:
+                ret = os.waitpid(pid, os.WNOHANG)
+                if ret[0] != 0:
+                    break
+            except ChildProcessError:
+                break
+        try:
+            os.waitpid(pid, 0)
+        except Exception:
+            pass
+
+run()
+PYEOF
+    sleep 2
+    warp-cli registration show >/dev/null 2>&1 || {
       err "WARP 注册失败"; return 1
     }
   fi
