@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.5.2
+#  Version: v3.8.1
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.5.2"
+SCRIPT_VERSION="v3.8.1"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -303,6 +303,7 @@ hr(){ printf "${C_DIM}==========================================================
 
 # ===== 基础工具 =====
 info(){ echo -e "[${C_CYAN}信息${C_RESET}] $*"; }
+ok(){   echo -e "[${C_GREEN}成功${C_RESET}] $*"; }
 warn(){ echo -e "[${C_YELLOW}警告${C_RESET}] $*"; }
 die(){  echo -e "[${C_RED}错误${C_RESET}] $*" >&2; exit 1; }
 
@@ -665,7 +666,7 @@ ensure_warpcli_proxy(){
     return 1
   fi
 
-  ok "WARP proxy 已就绪：socks5://${WARP_SOCKS_HOST}:${WARP_SOCKS_PORT}"
+  ok "WARP proxy 已就绪"
   return 0
 }
 
@@ -884,14 +885,14 @@ write_config(){
       (inbound_tuic($PW9) + {tag:"tuic-v5-warp"})
     ],
     outbounds: (
-      if $ENABLE_WARP=="true" and ($WPRIV|length)>0 and ($WHOST|length)>0 then
+      if $ENABLE_WARP=="true" then
         [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}, warp_outbound]
       else
         [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}]
       end
     ),
     route: (
-      if $ENABLE_WARP=="true" and ($WPRIV|length)>0 and ($WHOST|length)>0 then
+      if $ENABLE_WARP=="true" then
         { default_domain_resolver:"dns-remote", rules:[
             { inbound: ["vless-reality-warp","vless-grpcr-warp","trojan-reality-warp","hy2-warp","vmess-ws-warp","hy2-obfs-warp","ss2022-warp","ss-warp","tuic-v5-warp"], outbound:"warp" }
           ],
@@ -1080,26 +1081,11 @@ rotate_ports(){
 
 
 uninstall_all(){
-  # 停止服务
   systemctl stop "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
-  
-  # 禁用服务
   systemctl disable "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
-  
-  # 删除 systemd 服务文件
   rm -f "/etc/systemd/system/${SYSTEMD_SERVICE}"
-  
-  # 重新加载 systemd 配置
   systemctl daemon-reload
-  
-  # 删除 sing-box 二进制文件和配置文件
-  rm -rf /usr/local/bin/sing-box
-  rm -rf /var/lib/sing-box-plus
-  
-  # 清理脚本的工作目录
   rm -rf "$SB_DIR"
-
-  # 输出卸载完成的提示
   echo -e "${C_GREEN}已卸载并清理完成。${C_RESET}"
   exit 0
 }
