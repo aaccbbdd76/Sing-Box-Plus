@@ -7,7 +7,7 @@
 * ✅ 一键生成证书（自签），一键 systemd 托管
 * ✅ **更换端口**后自动重写配置与放行
 * ✅ 分享链接分组打印（直连 9 / WARP 9），导入即用
-* ✅ WARP 节点，将服务器 IP“变身”为 Cloudflare 的中性出口，Netflix/Disney+/YouTube 等流媒体解锁
+* ✅ WARP 节点，将服务器 IP“变身”为 Cloudflare 的中性出口，Gemini/Netflix/Disney+/YouTube 等流媒体解锁
 
 **2026年3月5日重要提醒：** 脚本已更新，当前版本v3.9.9。由于当前脚本与 **sing-box v1.13.0** 版本不兼容，若您已经安装了该版本，请先卸载并重新安装 **sing-box v1.12.x** 版本。可使用以下命令进行卸载：
 
