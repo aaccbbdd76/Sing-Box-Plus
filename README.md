@@ -2,14 +2,14 @@
 
 开箱即用 18 个节点（直连 9 + WARP 9），含端口一键切换、BBR 加速、分享链接导出等。
 
-* ✅ 已适配 **sing-box v1.12.x**
+* ✅ 已适配 **sing-box v1.13.x**
 * ✅ 支持 ​**WARP 出站**（官方 warp-cli，更高兼容性，非 wgcf）​
 * ✅ 一键生成证书（自签），一键 systemd 托管
 * ✅ **更换端口**后自动重写配置与放行
 * ✅ 分享链接分组打印（直连 9 / WARP 9），导入即用
 * ✅ WARP 节点，将服务器 IP“变身”为 Cloudflare 的中性出口，Gemini/Netflix/Disney+/YouTube 等流媒体解锁
 
-**2026年3月5日重要提醒：** 脚本已更新，当前版本v3.9.9。由于当前脚本与 **sing-box v1.13.0** 版本不兼容，若您已经安装了该版本，请先卸载并重新安装 **sing-box v1.12.x** 版本。可使用以下命令进行卸载：
+**2026年3月26日更新提醒：** 脚本已更新，当前版本v4.4.0。当前脚本支持 **sing-box v1.13.0** 版本，若您已经安装了旧脚本，请先卸载后重装脚本。也可使用以下命令进行卸载：
 
 ```bash
 systemctl stop sing-box
@@ -73,7 +73,7 @@ curl -fsSL -o sing-box-plus.sh https://raw.githubusercontent.com/Alvin9999-newpa
 ## 🧭 功能菜单
 
 ```text
- 🚀 Sing-Box-Plus 管理脚本 v3.9.9 🚀
+ 🚀 Sing-Box-Plus 管理脚本 v4.4.0 🚀
  脚本更新地址: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 =============================================================
 系统加速状态：已启用 / 未启用 BBR
@@ -96,7 +96,7 @@ Sing-Box 启动状态：运行中 / 未运行 / 未安装
 
 | 版本    | 日期     | 变更 |
 |--------|----------|------|
-| v3.9.9 | 2026-03 | WARP节点已修复。 |
+| v4.4.0 | 2026-03 | 支持sing-box 1.13.x |
 
 
 ---
