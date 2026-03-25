@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.9.8
+#  Version: v4.0.0
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.9.8"
+SCRIPT_VERSION="v4.0.0"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -540,6 +540,8 @@ mk_cert(){
       -keyout "$key" -out "$crt" -subj "/CN=$REALITY_SERVER" \
       -addext "subjectAltName=DNS:$REALITY_SERVER" >/dev/null 2>&1
   fi
+    CRT_SHA256=$(openssl x509 -in "$crt" -fingerprint -sha256 -noout \
+    | sed 's/SHA256 Fingerprint=//;s/://g' | tr 'A-F' 'a-f')
 }
 
 ensure_creds(){
@@ -1113,15 +1115,19 @@ JSON
   links_warp+=("ss://$(printf "%s" "aes-256-gcm:${SS_PWD}" | b64enc)@${host}:${PORT_SS_W}#ss-warp")
   links_warp+=("tuic://${UUID}:$(urlenc "${UUID}")@${host}:${PORT_TUIC_W}?congestion_control=bbr&alpn=h3&insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5-warp")
 
-  echo -e "${C_BLUE}${C_BOLD}分享链接（18 个）${C_RESET}"
+echo -e "${C_BLUE}${C_BOLD}分享链接（18 个）${C_RESET}"
   hr
   echo -e "${C_CYAN}${C_BOLD}【直连节点（9）】${C_RESET}（vless-reality / vless-grpc-reality / trojan-reality / vmess-ws / hy2 / hy2-obfs / ss2022 / ss / tuic）"
   for l in "${links_direct[@]}"; do echo "  $l"; done
   hr
   echo -e "${C_CYAN}${C_BOLD}【WARP 节点（9）】${C_RESET}（同上 9 种，带 -warp）"
   echo -e "${C_DIM}说明：带 -warp 的 9 个节点走 Cloudflare WARP 出口，流媒体解锁更友好${C_RESET}"
-  echo -e "${C_DIM}提示：TUIC 默认 allowInsecure=1，v2rayN 导入即用${C_RESET}"
   for l in "${links_warp[@]}"; do echo "  $l"; done
+  hr
+  echo -e "${C_YELLOW}📌 如果你使用 Xray-core v26.2.6+，hysteria2 节点的 allowInsecure 已被移除，${C_RESET}"
+  echo -e "${C_YELLOW}   请改用以下 pinnedPeerCertSha256 节点：${C_RESET}"
+  echo "  hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2}?sni=${REALITY_SERVER}&pcs=${CRT_SHA256}#hysteria2-pinnedPeerCertSha256"
+  echo "  hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2_W}?sni=${REALITY_SERVER}&pcs=${CRT_SHA256}#hysteria2-warp-pinnedPeerCertSha256"
   hr
 }
 
