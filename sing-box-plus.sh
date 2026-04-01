@@ -885,7 +885,7 @@ install_singbox() {
 
 
   tmp="$(mktemp -d)"; pkg="${tmp}/pkg"
-  if ! curl -fL "$url" -o "$pkg"; then
+  if ! curl -fL --retry 3 --retry-delay 5 --connect-timeout 15 -o "$pkg" "$url"; then
     rm -rf "$tmp"; err "下载 sing-box 失败"; return 1
   fi
 
